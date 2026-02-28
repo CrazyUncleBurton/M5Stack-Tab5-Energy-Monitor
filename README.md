@@ -10,8 +10,6 @@ Last Updated 2/28/2026
 
 In this project we show you how to download a project from GitHub, then build the project and upload to the M5Stack / Tab5 microcontroller.  The program will read from a TI INA3221 sensor via I2C and then output the data to the microcontroller LCD. The UI has been updated to an LVGL / Squareline Studio project - a demo for the Tab5 by NikTheFix.  I used it as a starting point and modified it for our purposes.
 
-We also changed the metric to the Imperial Units of Freedom that allowed us to land on the moon.
-
 ## Hardware
 
 Microcontroller:  M5Stack Tab5 (ESP32-P4NRW32@RISC-V 32-bit Dual-core 360MHz + LP Single-core 40MHz)
@@ -23,13 +21,13 @@ Connect the cable to the pins on the sensor:
 
 Sensor      Cable/Port
 
-VCC---------Red/VCC
+Sensor VCC -> Red Port Red wire.
 
-GND---------Black/GND
+Sensor GND -> Red Port Black Wire.
 
-SDA---------Yellow/SDA
+Sensor SDA -> Red Port Yellow Wire.
 
-SCL---------White/SCL
+Sensor SCL -> Red Port White Wire.
 
 Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
 
@@ -73,9 +71,11 @@ The battery connections on the back of the M5Stack Tab5 are a standard Sony NP-F
 
 The battery only charges when the device is on and configured.
 
-1. Enter Download Mode - With USB cable or battery connected, long‑press the Reset button (2 seconds) until the internal green LED rapidly blinks; release to enter download mode and await firmware flashing.
+### Programming
 
-2. Program like you would any other VS Code Project.  Click the PlatformIO:Upload button (shaped like a right arrow).
+1. Program like you would any other VS Code Project.  Click the PlatformIO:Upload button (shaped like a right arrow).
+
+2. If it doesn't work, enter Download Mode - With USB cable or battery connected, long‑press the Reset button (2 seconds) until the internal green LED rapidly blinks; release to enter download mode and await firmware flashing.
 
 ### Pin Map
 
