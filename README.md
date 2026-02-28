@@ -22,9 +22,13 @@ Cable:  4 wire Grove to 0.025" female sockets cable
 Connect the cable to the pins on the sensor:
 
 Sensor      Cable/Port
+
 VCC---------Red/VCC
+
 GND---------Black/GND
+
 SDA---------Yellow/SDA
+
 SCL---------White/SCL
 
 Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
