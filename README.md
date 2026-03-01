@@ -6,48 +6,49 @@ M5Stack Tab5 Energy Monitor for TI INA3221 Current Sensor Squareline LVGL UI
 by Bryan A. "CrazyUncleBurton" Thompson
 Last Updated 2/28/2026
 
+## To Do
+
+1. Add support for thermocouples (load and battery) and add graphs to battery mode.  Add check for hardware at startup.
+2. Add support for DAC. Add check for hardware at startup.
+3. Add Settings screen.  Configure logging, RTC, other stuff here.
+4. Implement RTC. How do we set that? Add to screen.
+5. Log to SD Card if present and a box is checked - create CSV. 
+6. Add Battery Measurement Mode.  CH1.  Reporting via LCD.  Control Current by controlling ADC. 
+7. Add ADCx8 to measure indiv cells on a balance connector.
+
 ## Concepts
 
-In this project we show you how to download a project from GitHub, then build the project and upload to the M5Stack / Tab5 microcontroller.  The program will read from a TI INA3221 sensor via I2C and then output the data to the microcontroller LCD. The UI has been updated to an LVGL / Squareline Studio project - a demo for the Tab5 by NikTheFix.  I used it as a starting point and modified it for our purposes.
+In this project we show you how to download a project from GitHub, then build the project and upload to the M5Stack / Tab5 microcontroller.  The program will read from a TI INA3221 sensor via I2C and then output the data to the microcontroller LCD. The UI has been updated to an LVGL / Squareline Studio project.
 
 ## Hardware
 
 Microcontroller:  M5Stack Tab5 (ESP32-P4NRW32@RISC-V 32-bit Dual-core 360MHz + LP Single-core 40MHz)
 Display:  5" (1280 x 720) IPS TFT LCD and ILI9881C controller with GT911 capacitive touch controller
-Sensor: Adafruit INA3221
-Cable:  4 wire Grove to 0.025" female sockets cable
+Current and Voltage Sensors: Adafruit INA3221
+Thermocouple Amplifiers:  MCP9600
+DAC:  AD5693R
 
-Connect the cable to the pins on the sensor:
+## I2C Map
 
-Sensor      Cable/Port
-
-Sensor VCC -> Red Port Red wire.
-
-Sensor GND -> Red Port Black Wire.
-
-Sensor SDA -> Red Port Yellow Wire.
-
-Sensor SCL -> Red Port White Wire.
-
-Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
+External Bus / PORTA (Red)
+Adafruit INA3221 Current Sensor - 0x40
+Adafruit INA228 Current Sensor - 0x40
+Adafruit MCP9600 Thermocouple Amplifier - 0x67
+Adafruit AD5693R DAC - 0x4C (addr pin Low) and 0x4E (addr pin High)
 
 ## Project Documentation
 
 See the project files / docs folder for a PDF of the tutorial.
 
-## To Do
+## Sensors
 
-Implement RTC. How do we set that?  Log to SD Card if present and a box is checked - create CSV.  Add Settings screen?
-
-## Texas Instruments INA32211 Sensor by Adafruit.com
+### Texas Instruments INA32211 Sensor by Adafruit.com
 
 Connect the cable to the pins on the sensor:
-
-Sensor      Cable/Port
-VCC---------Red/VCC
-GND---------Black/GND
-SDA---------Yellow/SDA
-SCL---------White/SCL
+Sensor VCC -> Tab5 Red PORTA Red/VCC.
+Sensor GND -> Tab5 Red PORTA Black/GND.
+Sensor SDA -> Tab5 Red PORTA Yellow/SDA.
+Sensor SCL -> Tab5 Red PORTA White/SCL.
 
 Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
 
@@ -56,6 +57,20 @@ The library comes from Adafruit.com.  It can read voltage and current on three i
 It can measure voltage up to 26V with a resolution of 8mV/step (this is a Bus Voltage measurement).
 
 It can measure +/-3.2A with a resolution of 0.390625mA/step (this is a Shunt measurement) with its supplied 0.05 Ohm shunt resistors, or it can be modified for larger or smaller current ranges.  
+
+The default I2C address for the Adafruit board is 0x40.
+
+### Texas Instruments INA228 Current Sensor by Adafruit.com
+
+The default I2C address for the Adafruit board is 0x40.
+
+### Microchip MCP9600 Thermocouple Amplifiers by Adafruit.com
+
+The default I2C address for the Adafruit board is 0x67 (address pin tied to VIN by the manufacturer).  Tie address to ground for 0x60.  
+
+### Analog Devices AD5693R 16-bit DAC by Adafruit.com
+
+The default I2C address for the Adafruit board is 0x4C (address pin connected low by default).  Connect address pin high for the alternate I2C address of 0x4E.
 
 ## M5Stack Tab5 Dev Board Information
 
@@ -315,9 +330,6 @@ M5GFX Display Library:
 
 LVGL:
 <https://lvgl.io/>
-
-LVGL Demo Project:
-<https://github.com/nikthefix/M5Stack_Tab5_Arduino_Basic_LVGL_Demo>
 
 SquareLine Studios UI Creator (we need v8.33-8.4):
 <https://squareline.io/downloads>
