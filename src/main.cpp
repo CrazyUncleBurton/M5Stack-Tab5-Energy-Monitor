@@ -4,14 +4,16 @@
 
   by Bryan A. "CrazyUncleBurton" Thompson
 
-  Last Updated 2/19/2026
+  Last Updated 2/28/2026
 
 
   Dependencies:
 
   ESP-Arduino >= V3.2.54 (tested also working with 3.3.0-alpha1)
-  M5GFX >= V0.2.8
-  LVGL = V8.3.11
+  M5Unified = 0.2.13
+  M5GFX = V0.2.19
+  LVGL = V8.4.0
+  Adafruit_INA3221 = V1.0.1
 
   lv_conf.h:
   #define LV_COLOR_DEPTH 16
