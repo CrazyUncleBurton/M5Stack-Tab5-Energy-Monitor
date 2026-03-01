@@ -1,8 +1,5 @@
 # M5Stack-Tab5-Energy-Monitor
 M5Stack Tab5 Energy Monitor for TI INA3221 Current Sensor Squareline LVGL UI
-
-# M5Stack-Tab5_and-TI-INA3221-Current-Sensor_with-SLS-and-LVGL
-
 by Bryan A. "CrazyUncleBurton" Thompson
 Last Updated 2/28/2026
 
@@ -15,6 +12,7 @@ Last Updated 2/28/2026
 5. Log to SD Card if present and a box is checked - create CSV. 
 6. Add Battery Measurement Mode.  CH1.  Reporting via LCD.  Control Current by controlling ADC. 
 7. Add ADCx8 to measure indiv cells on a balance connector.
+8. Add settings for min battery discharge voltage, battery chemistry, number of cells in series, ampacity for pass/fail.
 
 ## Concepts
 
