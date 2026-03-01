@@ -92,213 +92,207 @@ The battery only charges when the device is on and configured.
 
 2. If it doesn't work, enter Download Mode - With USB cable or battery connected, long‑press the Reset button (2 seconds) until the internal green LED rapidly blinks; release to enter download mode and await firmware flashing.
 
-### Pin Map
+### M5Stack Tab5 Pin Map
 
 #### Camera
 
-G32 - Camera SCL
-G33 - Camera SDA
-G36 - Camera MCLK
-CSI_DATAP1 (Dedicated) - CAM_D1P
-CSI_DATAN1 (Dedicated) - CAM_D1N
-CSI_CLKP (Dedicated) - CAM_CSI_CKP
-CSI_CLKN (Dedicated) - CAM_CSI_CKN
-CSI_DATAP0 (Dedicated) - CSI_DOP
-CSI_DATAN0 (Dedicated) - CSI_DON
+- G32 - Camera SCL
+- G33 - Camera SDA
+- G36 - Camera MCLK
+- CSI_DATAP1 (Dedicated) - CAM_D1P
+- CSI_DATAN1 (Dedicated) - CAM_D1N
+- CSI_CLKP (Dedicated) - CAM_CSI_CKP
+- CSI_CLKN (Dedicated) - CAM_CSI_CKN
+- CSI_DATAP0 (Dedicated) - CSI_DOP
+- CSI_DATAN0 (Dedicated) - CSI_DON
 
 #### ES8388 2 Channel Audio Codec
 
 ES8388 (0x10)
-G30 - MCLK
-G27 - SCLK
-G26 - DSDIN
-G29 - LRCK
-G32 - SCL
-G33 - SDA
+- G30 - MCLK
+- G27 - SCLK
+- G26 - DSDIN
+- G29 - LRCK
+- G32 - SCL
+- G33 - SDA
 
 #### ES7210 4 CH ADC 24-bit Possible Mic Array
 
 ES7210 (0x40)
-G30 - MCLK
-G27 - SCLK
-G26 - ASDOUT
-G29 - LRCK
-G32 - SCL
-G33 - SDA
+- G30 - MCLK
+- G27 - SCLK
+- G26 - ASDOUT
+- G29 - LRCK
+- G32 - SCL
+- G33 - SDA
 
 #### LCD ILI9881C (Old) / ST7123 (New post 2024)
 
-G22 - LEDA
-DSI_CLKN (Dedicated) - DSI_CK_N
-DSI_CLKP (Dedicated) - DSI_CK_P
-DSI_DATAN1 (Dedicated) - DSI_D1_N
-DSI_DATAP1 (Dedicated) - DSI_D1_P
-DSI_DATAN0 (Dedicated) - DSI_D0_N
-DSI_DATAP0 (Dedicated) - DSI_D0_P
+- G22 - LEDA
+- DSI_CLKN (Dedicated) - DSI_CK_N
+- DSI_CLKP (Dedicated) - DSI_CK_P
+- DSI_DATAN1 (Dedicated) - DSI_D1_N
+- DSI_DATAP1 (Dedicated) - DSI_D1_P
+- DSI_DATAN0 (Dedicated) - DSI_D0_N
+- DSI_DATAP0 (Dedicated) - DSI_D0_P
 
 #### Touch
 
 GT911 (0x14) / ST7123 (0x55)
-G31 - SDA
-G32 - SCL
-G23 - TP_INT
-E1.P5 - TP_RST
+- G31 - SDA
+- G32 - SCL
+- G23 - TP_INT
+- E1.P5 - TP_RST
 
 #### BMI270
 
 BMI270 (0x68)
-G32 - SCL
-G31 - SDA
+- G32 - SCL
+- G31 - SDA
 
 #### RTC(RX8130CE)
 
 RX8130CE (0x32)
-G32 - SCL
-G31 - SDA
+- G32 - SCL
+- G31 - SDA
 
 #### INA226
 
 INA226 (0x40)
-G32 - SCL
-G31 - SDA
+- G32 - SCL
+- G31 - SDA
 
 #### ESP32-C6
 
-G11 - SDIO2_D0
-G10 - SDIO2_D1
-G9 - SDIO2_D2
-G8 - SDIO2_D3
-G13 - SDIO2_CMD
-G12 - SDIO2_CK
-G15 - RESET
-G14 - IO2
-G35 - BOOT
+- G11 - SDIO2_D0
+- G10 - SDIO2_D1
+- G9 - SDIO2_D2
+- G8 - SDIO2_D3
+- G13 - SDIO2_CMD
+- G12 - SDIO2_CK
+- G15 - RESET
+- G14 - IO2
+- G35 - BOOT
 
 #### microSD
 
 microSD SPI Mode
-G9 - MISO
-G42 - CS
-G43 - SCK
-G44 - MOSI
+- G9 - MISO
+- G42 - CS
+- G43 - SCK
+- G44 - MOSI
 
 microSD SDIO Mode
-G39 - DAT0
-G40 - DAT1
-G41 - DAT2
-G42 - DAT3
-G43 - CLK
-G44 - CMD
+- G39 - DAT0
+- G40 - DAT1
+- G41 - DAT2
+- G42 - DAT3
+- G43 - CLK
+- G44 - CMD
 
 #### RS485
 
 SIT3088
-G21 - RX
-G20 - TX
-G34 - DIR
+- G21 - RX
+- G20 - TX
+- G34 - DIR
 
 #### HY2.0-4P PORT A
 
-This is connected to Wire() by default - not to Wire1().
+The red external grove connector marked PORTA is connected to Wire() by default - not to Wire1().  This is now referenced as M5.Ex_I2C.begin(); in the M5Unified library.
 
-This is now referenced as M5.Ex_I2C.begin(); in the M5Unified library.
-
-Black - GND
-Red - +5V
-Yellow - G53 - Ext SDA
-White - G54 - Ext SCL
+- Black - GND
+- Red - +5V
+- Yellow - G53 - Ext SDA
+- White - G54 - Ext SCL
 
 #### I2C (Internal)
 
-This is referenced by Wire1() in Arduino / PlatformIO with Arduino framework.
+This is referenced by Wire1() in Arduino / PlatformIO with Arduino framework. This is now referenced as   M5.In_I2C.begin(); in the M5Unified library.
 
-This is now referenced as   M5.In_I2C.begin(); in the M5Unified library.
-
-G32 - Int SCL
-G33 - Int SDA
+- G32 - Int SCL
+- G33 - Int SDA
 
 #### I2C (External - Port A)
 
-This is referenced by Wire() in Arduino / PlatformIO with Arduino framework.
+This is referenced by Wire() in Arduino / PlatformIO with Arduino framework. This is now referenced as M5.Ex_I2C.begin(); in the M5Unified library.
 
-This is now referenced as M5.Ex_I2C.begin(); in the M5Unified library.
-
-G53 - Ext SCL
-G54 - Ext SDA
+- G53 - Ext SCL
+- G54 - Ext SDA
 
 #### SPI
 
-G18 - MOSI
-G19 - MISO
-G5 - SCK
+- G18 - MOSI
+- G19 - MISO
+- G5 - SCK
 
 #### Serial
 
-RXD0 - G38
-TXD0 - G37
+- G38 - RXD0
+- G37 - TXD0
 
 #### M5Bus (Rear)
 
 Note:  The bus is the same layout as the old CORE2 bus with old GPIO map
-Pin 1 - GND
-Pin 2 - G16 - GPIO
-Pin 3 - GND
-Pin 4 - G17 - PB_IN
-Pin 5 - GND
-Pin 6 - RST - EN
-Pin 7 - G18 - SPI_MOSI
-Pin 8 - G45 - GPIO
-Pin 9 - G19 - SPI_MISO
-Pin 10 - G52 - PB_OUT
-Pin 11 - G5 - SPI_SCK
-Pin 12 - 3V3
-Pin 13 - G38 - RXD0
-Pin 14 - G37 - TXD0
-Pin 15 - G7 - PC-RX
-Pin 16 - G6 - PC_TX
-Pin 17 - G31 - Int SDA
-Pin 18 - G32 - Int SCL
-Pin 19 - G3 - GPIO
-Pin 20 - G4 - GPIO
-Pin 21 - G2 - GPIO
-Pin 22 - G48 - GPIO
-Pin 23 - G47 - GPIO
-Pin 24 - G35 - GPIO - BOOT
-Pin 25 - HVIN
-Pin 26 - G51 - GPIO
-Pin 27 - HVIN
-Pin 28 - 5V
-Pin 29 - HVIN
-Pin 30 - BAT
+- Pin 1 - GND
+- Pin 2 - G16 - GPIO
+- Pin 3 - GND
+- Pin 4 - G17 - PB_IN
+- Pin 5 - GND
+- Pin 6 - RST - EN
+- Pin 7 - G18 - SPI_MOSI
+- Pin 8 - G45 - GPIO
+- Pin 9 - G19 - SPI_MISO
+- Pin 10 - G52 - PB_OUT
+- Pin 11 - G5 - SPI_SCK
+- Pin 12 - 3V3
+- Pin 13 - G38 - RXD0
+- Pin 14 - G37 - TXD0
+- Pin 15 - G7 - PC-RX
+- Pin 16 - G6 - PC_TX
+- Pin 17 - G31 - Int SDA
+- Pin 18 - G32 - Int SCL
+- Pin 19 - G3 - GPIO
+- Pin 20 - G4 - GPIO
+- Pin 21 - G2 - GPIO
+- Pin 22 - G48 - GPIO
+- Pin 23 - G47 - GPIO
+- Pin 24 - G35 - GPIO - BOOT
+- Pin 25 - HVIN
+- Pin 26 - G51 - GPIO
+- Pin 27 - HVIN
+- Pin 28 - 5V
+- Pin 29 - HVIN
+- Pin 30 - BAT
 
 #### Ext Port 1 (Side)
 
-G50
-G1
-3V3
-GND
-HVIN
-GND
-GND
-EXT 5V
-G0
-G49
+- G50
+- G1
+- 3V3
+- GND
+- HVIN
+- GND
+- GND
+- EXT 5V
+- G0
+- G49
 
 #### Ext Port 2 - RS485 (Rear)
 
-Pin 1 - Black - GND
-Pin 2 - Red - HVIN
-Pin 3 - YEL - 485A
-Pin 4 - Green - 485B
-Pin 5 - White - SDA - G32
-Pin 6 - Blue - SCL - G32
+- Pin 1 - Black - GND
+- Pin 2 - Red - HVIN
+- Pin 3 - YEL - 485A
+- Pin 4 - Green - 485B
+- Pin 5 - White - SDA - G32
+- Pin 6 - Blue - SCL - G32
 
 #### USB C Ext (Side)
 
-Pin 1 - USB1_D+
-Pin 2 - USB1_D-
-Pin 3 - GND
-Pin 4 - 5VIN
+- Pin 1 - USB1_D+
+- Pin 2 - USB1_D-
+- Pin 3 - GND
+- Pin 4 - 5VIN
 
 ## ESP32 Arduino Core 3.x Info
 
@@ -306,7 +300,7 @@ This project updates the Arduino Core to v3.x.  This enables all kinds of things
 
 platform = https://github.com/pioarduino/platform-espressif32.git#54.03.20; (Arduino Core 3.x)
 
-If your other projects stop building after this update, it may be because they don't explicitly state that they are intended for an older version of the Arduino Core. To do that, update the platformio.ini file and replace the platform line in the older project(s) with this:
+If your other non-core3 projects stop building after this update, it may be because they don't explicitly state that they are intended for an older version of the Arduino Core. To do that, update the platformio.ini file and replace the platform line in the older project(s) with this:
 
 platform = espressif32@~6.5.0; (or whatever version you want. 6.5–6.8 map to Arduino core 2.0.x)
 
