@@ -22,19 +22,19 @@ In this project we show you how to download a project from GitHub, then build th
 
 ## Hardware
 
-Microcontroller:  M5Stack Tab5 (ESP32-P4NRW32@RISC-V 32-bit Dual-core 360MHz + LP Single-core 40MHz)
-Display:  5" (1280 x 720) IPS TFT LCD and ILI9881C controller with GT911 capacitive touch controller
-Current and Voltage Sensors: Adafruit INA3221
-Thermocouple Amplifiers:  MCP9600
-DAC:  AD5693R
+- Microcontroller:  M5Stack Tab5 (ESP32-P4NRW32@RISC-V 32-bit Dual-core 360MHz + LP Single-core 40MHz)
+- Display:  5" (1280 x 720) IPS TFT LCD and ILI9881C controller with GT911 capacitive touch controller
+- Current and Voltage Sensors: Adafruit INA3221
+- Thermocouple Amplifiers:  MCP9600
+- DAC:  AD5693R
 
 ## I2C Map
 
-External Bus / PORTA (Red)
-Adafruit INA3221 Current Sensor - 0x40
-Adafruit INA228 Current Sensor - 0x40
-Adafruit MCP9600 Thermocouple Amplifier - 0x67
-Adafruit AD5693R DAC - 0x4C (addr pin Low) and 0x4E (addr pin High)
+External Bus / PORTA (Red):
+- Adafruit INA3221 Current Sensor - 0x40
+- Adafruit INA228 Current Sensor - 0x40
+- Adafruit MCP9600 Thermocouple Amplifier - 0x67
+- Adafruit AD5693R DAC - 0x4C (addr pin Low) and 0x4E (addr pin High)
 
 ## Project Documentation
 
@@ -45,10 +45,10 @@ See the project files / docs folder for a PDF of the tutorial.
 ### Texas Instruments INA32211 Sensor by Adafruit.com
 
 Connect the cable to the pins on the sensor:
-Sensor VCC -> Tab5 Red PORTA Red/VCC.
-Sensor GND -> Tab5 Red PORTA Black/GND.
-Sensor SDA -> Tab5 Red PORTA Yellow/SDA.
-Sensor SCL -> Tab5 Red PORTA White/SCL.
+- Sensor VCC -> Tab5 Red PORTA Red/VCC
+- Sensor GND -> Tab5 Red PORTA Black/GND
+- Sensor SDA -> Tab5 Red PORTA Yellow/SDA
+- Sensor SCL -> Tab5 Red PORTA White/SCL
 
 Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
 
