@@ -24,7 +24,7 @@
   Board: "ESP32P4 Dev Module"
   USB CDC on boot: "Enabled"
   Flash Size: "16MB (128Mb)"
-  Partition Scheme: "Custom" (the supplied partitions.csv file allows almost full use of the flash for the main app)
+  Board Build Partitions:  "partitions.csv"
   PSRAM: "Enabled"
   Upload Mode: "UART / Hardware CDC"
   USB Mode: "Hardware CDC and JTAG"
