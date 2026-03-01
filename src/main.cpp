@@ -1,10 +1,10 @@
 /*
 
-  M5Stack Tab5 and TI INA3221 Current Sensor
+  M5Stack Tab5 Energy Monitor
 
   by Bryan A. "CrazyUncleBurton" Thompson
 
-  Last Updated 2/28/2026
+  Last Updated 3/1/2026
 
 
   Dependencies:

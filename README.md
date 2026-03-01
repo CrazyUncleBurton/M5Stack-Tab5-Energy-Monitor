@@ -1,7 +1,7 @@
 # M5Stack-Tab5-Energy-Monitor
 M5Stack Tab5 Energy Monitor for TI INA3221 Current Sensor Squareline LVGL UI
 by Bryan A. "CrazyUncleBurton" Thompson
-Last Updated 2/28/2026
+Last Updated 3/1/2026
 
 ## To Do
 
@@ -36,7 +36,17 @@ External Bus / PORTA (Red):
 
 ## Project Documentation
 
-See the project files / docs folder for a PDF of the tutorial.
+Seriously, go to the docs folder and read the documents on setting up the computer and cloning GitHub projects!
+
+The GitHub project is located here: <https://github.com/CrazyUncleBurton/M5Stack-Tab5-Energy-Monitor>
+
+1. Set up machine per the document "docs/VS Code and Source Control.pdf".
+2. Read the section on cloning a project to the local hard drive.
+3. The URL to clone is: https://github.com/CrazyUncleBurton/M5Stack-Tab5-Energy-Monitor.git
+4. Authenticate to GitHub if prompted.  
+5. Choose the location on the local hard drive where the project folder will live.  I use <UserProfile\Documents\PlatformIO\Projects>.  Create that directory if needed.
+
+See the project files / docs folder for more info.
 
 ## Sensors
 
