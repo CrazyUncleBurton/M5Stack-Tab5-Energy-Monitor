@@ -31,8 +31,9 @@ In this project we show you how to download a project from GitHub, then build th
 External Bus / PORTA (Red):
 - Adafruit INA3221 Current Sensor - 0x40
 - Adafruit INA228 Current Sensor - 0x40
-- Adafruit MCP9600 Thermocouple Amplifier - 0x67
-- Adafruit AD5693R DAC - 0x4C (addr pin Low) and 0x4E (addr pin High)
+- Adafruit MCP9600 Thermocouple Amplifier #1- 0x64
+- Adafruit MCP9600 Thermocouple Amplifier #2 - 0x67
+- Adafruit AD5693R DAC - 0x4C (addr pin Low, default for Adafruit 5811)
 
 ## Project Documentation
 
@@ -50,7 +51,7 @@ See the project files / docs folder for more info.
 
 ## Sensors
 
-### Texas Instruments INA32211 Sensor by Adafruit.com
+### Adafruit 6062 Texas Instruments INA32211 Current Voltage Monitor
 
 Connect the cable to the pins on the sensor:
 - Sensor VCC -> Tab5 Red PORTA Red/VCC
@@ -68,17 +69,21 @@ It can measure +/-3.2A with a resolution of 0.390625mA/step (this is a Shunt mea
 
 The default I2C address for the Adafruit board is 0x40.
 
-### Texas Instruments INA228 Current Sensor by Adafruit.com
+### Adafruit 4101 Microchip MCP9600 Thermocouple Amplifiers
 
-The default I2C address for the Adafruit board is 0x40.
+The default I2C address for the first Adafruit board is 0x67 (ADDR pulled to VCC, both addr jumpers unsoldered).  The address for the second Adafruit board is 0x64 (both address jumpers soldered).
 
-### Microchip MCP9600 Thermocouple Amplifiers by Adafruit.com
+Connect the cable to the pins on the sensor:
+- Sensor VCC -> Tab5 Red PORTA Red/VCC
+- Sensor GND -> Tab5 Red PORTA Black/GND
+- Sensor SDA -> Tab5 Red PORTA Yellow/SDA
+- Sensor SCL -> Tab5 Red PORTA White/SCL
 
-The default I2C address for the Adafruit board is 0x67 (address pin tied to VIN by the manufacturer).  Tie address to ground for 0x60.  
+### Adafruit 5811 Analog Devices AD5693R 16-bit DAC
 
-### Analog Devices AD5693R 16-bit DAC by Adafruit.com
+The default I2C address for the Adafruit board is 0x4C (address pin connected low by default).  
 
-The default I2C address for the Adafruit board is 0x4C (address pin connected low by default).  Connect address pin high for the alternate I2C address of 0x4E.
+Just connect the QWIIC connector to the QWIIC connector on the INA3221 sensor.
 
 ## M5Stack Tab5 Dev Board Information
 
@@ -321,8 +326,14 @@ Microcontroller Info:
 <https://www.espressif.com/en/products/socs/esp32-p4>
 <https://www.espressif.com/en/support/documents/technical-documents?keys=&field_type_tid_parent=esp32P4Series-SoCs&field_type_tid%5B%5D=1633>
 
-Adafruit INA3221 Sensor Board Info:
+Adafruit 6062 TI INA3221 Sensor Board Info:
 <https://learn.adafruit.com/adafruit-ina3221-breakout>
+
+Adafruit 4101 MCP9600 Thermocouple Board Info:
+<https://learn.adafruit.com/adafruit-mcp9600-i2c-thermocouple-amplifier>
+
+Adafruit 5811 AD5693R DAC Board Info:
+<https://learn.adafruit.com/adafruit-ad5693r-16-bit-dac-breakout-board>
 
 Texas Instruments INA3221 Sensor Data Sheet:
 <https://www.ti.com/lit/ds/symlink/ina3221.pdf>
