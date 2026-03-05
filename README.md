@@ -1,7 +1,7 @@
 # M5Stack-Tab5-Energy-Monitor
-M5Stack Tab5 Energy Monitor for TI INA3221 Current Sensor Squareline LVGL UI
+M5Stack Tab5 Energy Monitor Squareline LVGL UI
 by Bryan A. "CrazyUncleBurton" Thompson
-Last Updated 3/1/2026
+Last Updated 3/4/2026
 
 ## To Do
 
@@ -319,24 +319,30 @@ platform = espressif32@~6.5.0; (or whatever version you want. 6.5–6.8 map to A
 
 ## References
 
-Dev Board Info:
+M5Stack Tab5 Dev Board Info:
 <https://docs.m5stack.com/en/core/Tab5>
 
-Microcontroller Info:
+ESP32-P4 Microcontroller Info:
 <https://www.espressif.com/en/products/socs/esp32-p4>
 <https://www.espressif.com/en/support/documents/technical-documents?keys=&field_type_tid_parent=esp32P4Series-SoCs&field_type_tid%5B%5D=1633>
 
 Adafruit 6062 TI INA3221 Sensor Board Info:
 <https://learn.adafruit.com/adafruit-ina3221-breakout>
 
+Texas Instruments INA3221 Sensor Data Sheet:
+<https://www.ti.com/lit/ds/symlink/ina3221.pdf>
+
 Adafruit 4101 MCP9600 Thermocouple Board Info:
 <https://learn.adafruit.com/adafruit-mcp9600-i2c-thermocouple-amplifier>
+
+Microchip MCP9600 Sensor Datasheet:
+<https://ww1.microchip.com/downloads/en/DeviceDoc/MCP960X-Data-Sheet-20005426.pdf>
 
 Adafruit 5811 AD5693R DAC Board Info:
 <https://learn.adafruit.com/adafruit-ad5693r-16-bit-dac-breakout-board>
 
-Texas Instruments INA3221 Sensor Data Sheet:
-<https://www.ti.com/lit/ds/symlink/ina3221.pdf>
+Analog Devices AD5693R Sensor Datasheet:
+<https://www.analog.com/media/en/technical-documentation/data-sheets/ad5693r_5692r_5691r_5693.pdf>
 
 M5GFX Display Library:
 <https://docs.m5stack.com/en/arduino/m5gfx/m5gfx_functions>
