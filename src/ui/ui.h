@@ -24,6 +24,8 @@ typedef struct {
     float current_ma;
     float power_w;
     float energy_wh;
+    float battery_temp_f;
+    float load_temp_f;
 } ui_channel_data_t;
 
 void ui_init(void);

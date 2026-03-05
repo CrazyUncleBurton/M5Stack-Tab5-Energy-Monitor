@@ -1,5 +1,6 @@
 #include "ui.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -19,6 +20,8 @@ static lv_obj_t *value_voltage[CHANNEL_COUNT];
 static lv_obj_t *value_current[CHANNEL_COUNT];
 static lv_obj_t *value_power[CHANNEL_COUNT];
 static lv_obj_t *value_energy[CHANNEL_COUNT];
+static lv_obj_t *value_battery_temp[CHANNEL_COUNT];
+static lv_obj_t *value_load_temp[CHANNEL_COUNT];
 static lv_obj_t *chart_obj[CHANNEL_COUNT];
 static lv_chart_series_t *chart_series[CHANNEL_COUNT][METRIC_COUNT];
 static lv_obj_t *sensor_status_label[CHANNEL_COUNT];
@@ -45,6 +48,7 @@ static lv_style_t style_nav_button;
 static lv_style_t style_nav_button_active;
 
 static void set_value_text(lv_obj_t *label, float value, uint8_t decimals, const char *unit);
+static void set_temp_text(lv_obj_t *label, float value_f);
 
 static void apply_channel_values(uint8_t channel, const ui_channel_data_t *data)
 {
@@ -56,6 +60,8 @@ static void apply_channel_values(uint8_t channel, const ui_channel_data_t *data)
     set_value_text(value_current[channel], data->current_ma, 2, "mA");
     set_value_text(value_power[channel], data->power_w, 3, "W");
     set_value_text(value_energy[channel], data->energy_wh, 4, "Wh");
+    set_temp_text(value_battery_temp[channel], data->battery_temp_f);
+    set_temp_text(value_load_temp[channel], data->load_temp_f);
 }
 
 static void format_fixed(char *out, size_t out_size, float value, uint8_t decimals)
@@ -90,6 +96,20 @@ static void set_value_text(lv_obj_t *label, float value, uint8_t decimals, const
     format_fixed(number, sizeof(number), value, decimals);
     snprintf(text, sizeof(text), "%s %s", number, unit);
     lv_label_set_text(label, text);
+}
+
+static void set_temp_text(lv_obj_t *label, float value_f)
+{
+    if (label == NULL) {
+        return;
+    }
+
+    if (isnan(value_f)) {
+        lv_label_set_text(label, "--.- F");
+        return;
+    }
+
+    set_value_text(label, value_f, 1, "F");
 }
 
 static void refresh_chart(uint8_t channel)
@@ -400,7 +420,7 @@ static void build_channel_screen(uint8_t channel)
     lv_obj_set_size(instant, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_add_style(instant, &style_section, LV_PART_MAIN);
     lv_obj_set_flex_flow(instant, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(instant, 3, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(instant, 6, LV_PART_MAIN);
 
     char title[24];
     lv_snprintf(title, sizeof(title), "Channel %u", (unsigned)(channel + 1));
@@ -409,10 +429,34 @@ static void build_channel_screen(uint8_t channel)
     lv_obj_set_width(channel_title, lv_pct(100));
     lv_obj_add_style(channel_title, &style_channel_title, LV_PART_MAIN);
 
-    create_metric_row(instant, "Voltage", lv_palette_main(LV_PALETTE_RED), &value_voltage[channel]);
-    create_metric_row(instant, "Current", lv_palette_main(LV_PALETTE_YELLOW), &value_current[channel]);
-    create_metric_row(instant, "Power", lv_palette_main(LV_PALETTE_GREEN), &value_power[channel]);
-    create_metric_row(instant, "Total Energy", lv_palette_main(LV_PALETTE_BLUE), &value_energy[channel]);
+    lv_obj_t *columns = lv_obj_create(instant);
+    lv_obj_remove_style_all(columns);
+    lv_obj_set_size(columns, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(columns, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(columns, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_column(columns, 10, LV_PART_MAIN);
+
+    lv_obj_t *metrics_col = lv_obj_create(columns);
+    lv_obj_remove_style_all(metrics_col);
+    lv_obj_set_width(metrics_col, lv_pct(62));
+    lv_obj_set_height(metrics_col, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(metrics_col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(metrics_col, 3, LV_PART_MAIN);
+
+    create_metric_row(metrics_col, "Voltage", lv_palette_main(LV_PALETTE_RED), &value_voltage[channel]);
+    create_metric_row(metrics_col, "Current", lv_palette_main(LV_PALETTE_YELLOW), &value_current[channel]);
+    create_metric_row(metrics_col, "Power", lv_palette_main(LV_PALETTE_GREEN), &value_power[channel]);
+    create_metric_row(metrics_col, "Total Energy", lv_palette_main(LV_PALETTE_BLUE), &value_energy[channel]);
+
+    lv_obj_t *temp_col = lv_obj_create(columns);
+    lv_obj_remove_style_all(temp_col);
+    lv_obj_set_width(temp_col, lv_pct(36));
+    lv_obj_set_height(temp_col, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(temp_col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(temp_col, 3, LV_PART_MAIN);
+
+    create_metric_row(temp_col, "Battery Temp", lv_palette_main(LV_PALETTE_ORANGE), &value_battery_temp[channel]);
+    create_metric_row(temp_col, "Load Temp", lv_palette_main(LV_PALETTE_CYAN), &value_load_temp[channel]);
 
     lv_obj_t *footer = lv_obj_create(screen_channel[channel]);
     lv_obj_set_size(footer, lv_pct(100), LV_SIZE_CONTENT);
