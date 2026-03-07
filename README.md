@@ -1,11 +1,11 @@
 # M5Stack-Tab5-Energy-Monitor
 M5Stack Tab5 Energy Monitor Squareline LVGL UI
 by Bryan A. "CrazyUncleBurton" Thompson
-Last Updated 3/4/2026
+Last Updated 3/6/2026
 
 ## To Do
 
-1. Add support for thermocouples (load and battery) and add graphs to battery mode.  Add check for hardware at startup.
+1. Add support for thermocouples (load only) and add graphs to battery mode.  Add check for hardware at startup.
 2. Add support for DAC. Add check for hardware at startup.
 3. Add Settings screen.  Configure logging, RTC, other stuff here.
 4. Implement RTC. How do we set that? Add to screen.
@@ -16,31 +16,40 @@ Last Updated 3/4/2026
 
 ## Concepts
 
-In this project we show you how to download a project from GitHub, then build the project and upload to the M5Stack / Tab5 microcontroller.  The program will read from a TI INA3221 sensor via I2C and then output the data to the microcontroller LCD. The UI has been updated to an LVGL / Squareline Studio project.
+In this project we show you how to download a project from GitHub, then build the project and upload to the M5Stack / Tab5 microcontroller.  The program will read from an M5Stack INA226 current sensor via I2C and then output the data to the microcontroller LCD. The UI has been updated to an LVGL / Squareline Studio project.
 
 ## Hardware
 
 - Microcontroller:  M5Stack Tab5 (ESP32-P4NRW32@RISC-V 32-bit Dual-core 360MHz + LP Single-core 40MHz)
 - Display:  5" (1280 x 720) IPS TFT LCD and ILI9881C controller with GT911 capacitive touch controller
-- Current and Voltage Sensors: Adafruit INA3221
-- Thermocouple Amplifiers:  MCP9600
-- DAC:  AD5693R
+- Current and Voltage Sensors: M5Stack INA226 1A Current Sensor
+- Thermocouple Amplifier:  M5Stack U133-v11 Thermocouple (Load Temp only)
+- DAC:  M5Stack DAC2
 
 ## I2C Map
 
 External Bus / PORTA (Red):
-- Adafruit INA3221 Current Sensor - 0x40
-- Adafruit INA228 Current Sensor - 0x40
-- Adafruit MCP9600 Thermocouple Amplifier #1- 0x64
-- Adafruit MCP9600 Thermocouple Amplifier #2 - 0x67
-- Adafruit AD5693R DAC - 0x4C (addr pin Low, default for Adafruit 5811)
+- M5Stack INA226 Current Sensor - 0x41
+- M5Stack U133-v11 Thermocouple Amplifier (Load) - 0x66
+- M5Stack DAC2 - 0x59
 
 ## Project Documentation
 
-Seriously, go to the docs folder and read the documents on setting up the computer and cloning GitHub projects!
+Seriously, go to the docs folder and read the documents on setting up the computer and creating / copying projects!
 
 The GitHub project is located here: <https://github.com/CrazyUncleBurton/M5Stack-Tab5-Energy-Monitor>
 
+If you're a beginner and don't want to learn Git Source Control just yet, do this:
+
+1. Set up the machine per the document "VS Code without Source Control.pdf" in the /docs/ folder.
+2. Click the green Code button on the Github page and download the project to your hard drive.  
+3. Right click the Zip file and extract the contents to a local folder on your hard drive.  We suggest C:\Users\<UserName>\Downloads\PlatformIO\Projects.
+4. Open VS Code.  Close any open projects or folders or workspaces.
+5. Click File/Open Folder and select the folder you just downloaded and extracted.
+6. The project will open in VS Code.  PlatformIO will download the needed libraries and the Core3 compiler.
+7. Click PlatformIO:Upload to build and upload to the microcontroller. 
+
+If you're going the Source Control method, do this:
 1. Set up machine per the document "docs/VS Code and Source Control.pdf".
 2. Read the section on cloning a project to the local hard drive.
 3. The URL to clone is: https://github.com/CrazyUncleBurton/M5Stack-Tab5-Energy-Monitor.git
@@ -49,41 +58,37 @@ The GitHub project is located here: <https://github.com/CrazyUncleBurton/M5Stack
 
 See the project files / docs folder for more info.
 
+## App Usage
+
+1) Click Config to set the test parameters.  Important settings are the battery chemistry and the number of series cells the battery has as these will determine minimum voltage cutoff to protect the battery.  Choose the load type.  Click Apply when done.
+
+2) 
+
 ## Sensors
 
-### Adafruit 6062 Texas Instruments INA32211 Current Voltage Monitor
+### M5Stack INA226 1A Current Sensor
 
-Connect the cable to the pins on the sensor:
-- Sensor VCC -> Tab5 Red PORTA Red/VCC
-- Sensor GND -> Tab5 Red PORTA Black/GND
-- Sensor SDA -> Tab5 Red PORTA Yellow/SDA
-- Sensor SCL -> Tab5 Red PORTA White/SCL
+The M5Stack INA226 is a compact current and voltage sensor that can measure voltage and current on independent circuits, and then calculate power and other statistics from the data it gathers.
 
-Then connect cable to the PORTA (the red port on the microcontroller) which is connected to the External I2C bus.  It is referenced as Wire(); in Arduino.
+Connect the sensor to PORTA (the red port on the microcontroller) which is connected to the External I2C bus. It is referenced as Wire(); in Arduino.
 
-The library comes from Adafruit.com.  It can read voltage and current on three independent circuits, and then calculate power and other statistics from the data it gathers.  Each can be inserted either high-side or low-side.  
+The default I2C address is 0x41.
 
-It can measure voltage up to 26V with a resolution of 8mV/step (this is a Bus Voltage measurement).
+### M5Stack U133-v11 Thermocouple Unit
 
-It can measure +/-3.2A with a resolution of 0.390625mA/step (this is a Shunt measurement) with its supplied 0.05 Ohm shunt resistors, or it can be modified for larger or smaller current ranges.  
+The M5Stack U133-v11 is a Type K thermocouple amplifier for temperature measurement. This project uses one unit for Load Temperature monitoring.
 
-The default I2C address for the Adafruit board is 0x40.
+Connect the sensor to PORTA (the red port on the microcontroller) which is connected to the External I2C bus.
 
-### Adafruit 4101 Microchip MCP9600 Thermocouple Amplifiers
+The default I2C address for the Load thermocouple is 0x66.
 
-The default I2C address for the first Adafruit board is 0x67 (ADDR pulled to VCC, both addr jumpers unsoldered).  The address for the second Adafruit board is 0x64 (both address jumpers soldered).
+### M5Stack DAC2 Unit
 
-Connect the cable to the pins on the sensor:
-- Sensor VCC -> Tab5 Red PORTA Red/VCC
-- Sensor GND -> Tab5 Red PORTA Black/GND
-- Sensor SDA -> Tab5 Red PORTA Yellow/SDA
-- Sensor SCL -> Tab5 Red PORTA White/SCL
+The M5Stack DAC2 is a dual-channel, 12-bit digital-to-analog converter for outputting analog signals.
 
-### Adafruit 5811 Analog Devices AD5693R 16-bit DAC
+Connect the sensor to PORTA (the red port on the microcontroller) which is connected to the External I2C bus.
 
-The default I2C address for the Adafruit board is 0x4C (address pin connected low by default).  
-
-Just connect the QWIIC connector to the QWIIC connector on the INA3221 sensor.
+The default I2C address is 0x59.
 
 ## M5Stack Tab5 Dev Board Information
 
@@ -326,23 +331,14 @@ ESP32-P4 Microcontroller Info:
 <https://www.espressif.com/en/products/socs/esp32-p4>
 <https://www.espressif.com/en/support/documents/technical-documents?keys=&field_type_tid_parent=esp32P4Series-SoCs&field_type_tid%5B%5D=1633>
 
-Adafruit 6062 TI INA3221 Sensor Board Info:
-<https://learn.adafruit.com/adafruit-ina3221-breakout>
+M5Stack INA226 Current Sensor Unit Info:
+<https://docs.m5stack.com/en/unit/Unit_INA226-1A>
 
-Texas Instruments INA3221 Sensor Data Sheet:
-<https://www.ti.com/lit/ds/symlink/ina3221.pdf>
+M5Stack U133 Thermocouple Unit Info:
+<https://docs.m5stack.com/en/unit/KMeterISO%20Unit>
 
-Adafruit 4101 MCP9600 Thermocouple Board Info:
-<https://learn.adafruit.com/adafruit-mcp9600-i2c-thermocouple-amplifier>
-
-Microchip MCP9600 Sensor Datasheet:
-<https://ww1.microchip.com/downloads/en/DeviceDoc/MCP960X-Data-Sheet-20005426.pdf>
-
-Adafruit 5811 AD5693R DAC Board Info:
-<https://learn.adafruit.com/adafruit-ad5693r-16-bit-dac-breakout-board>
-
-Analog Devices AD5693R Sensor Datasheet:
-<https://www.analog.com/media/en/technical-documentation/data-sheets/ad5693r_5692r_5691r_5693.pdf>
+M5Stack DAC2 Unit Info:
+<https://docs.m5stack.com/en/unit/Unit-DAC2>
 
 M5GFX Display Library:
 <https://docs.m5stack.com/en/arduino/m5gfx/m5gfx_functions>

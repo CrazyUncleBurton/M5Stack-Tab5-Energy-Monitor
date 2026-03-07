@@ -1,412 +1,545 @@
 /*
-
-  M5Stack Tab5 Energy Monitor
+  Tab5 INA3221 Energy Monitor
 
   by Bryan A. "CrazyUncleBurton" Thompson
 
-  Last Updated 3/4/2026
-
-
-  Dependencies:
-
-  ESP-Arduino >= V3.2.54 (tested also working with 3.3.0-alpha1)
-  M5Unified = 0.2.13
-  M5GFX = V0.2.19
-  LVGL = V8.4.0
-  Adafruit_INA3221 = V1.0.1
-
-  lv_conf.h:
-  #define LV_COLOR_DEPTH 16
-  #define LV_COLOR_16_SWAP 1
-  #define LV_MEM_CUSTOM 1
-  #define LV_TICK_CUSTOM 1
-
-  Build Options:
-
-  Board: "ESP32P4 Dev Module"
-  USB CDC on boot: "Enabled"
-  Flash Size: "16MB (128Mb)"
-  Board Build Partitions:  "partitions.csv"
-  PSRAM: "Enabled"
-  Upload Mode: "UART / Hardware CDC"
-  USB Mode: "Hardware CDC and JTAG"
-
-  Notes:
-  Square Line Studio V1.5.1 project is included so that you can experiment with your own exported UI files.
-
+  Last Updated 3/6/2026
 */
 
-
-// #include <M5Unified.h>
 #include <Wire.h>
-#include "Adafruit_INA3221.h"
-#include "Adafruit_MCP9600.h"
-#include "Adafruit_MCP9601.h"
-#include "Adafruit_AD569x.h"
+#include <Preferences.h>
+#include <M5UnitUnified.h>
+#include <M5UnitUnifiedMETER.h>
+#include <M5UnitUnifiedANADIG.h>
 #include <M5GFX.h>
 #include <math.h>
 #include "lvgl.h"
 #include "ui/ui.h"
 #include "pins_config.h"
 
+// Sensor objects
+static m5::unit::UnitUnified meterUnits1A;
+static m5::unit::UnitUnified meterUnits10A;
+static m5::unit::UnitUnified thermoUnits;
+static m5::unit::UnitUnified anadigUnits;
 
-// Create an INA3221 object
-Adafruit_INA3221 ina3221;
-Adafruit_MCP9600 mcp9600Battery;
-Adafruit_MCP9600 mcp9600Load;
-Adafruit_MCP9601 mcp9601Battery;
-Adafruit_MCP9601 mcp9601Load;
-Adafruit_AD569x ad5693;
+static m5::unit::UnitINA226_1A ina226_1a;
+static m5::unit::UnitINA226_10A ina226_10a;
+static m5::unit::UnitKmeterISO loadThermocouple;
+static m5::unit::UnitDAC2 dac2;
 
+static m5::unit::UnitINA226 *activeIna226 = &ina226_1a;
+static m5::unit::UnitUnified *activeMeterUnits = &meterUnits1A;
+static Preferences preferences;
 
-// Create an M5GFX object.
-M5GFX display;
+// Display
+static M5GFX display;
 
-
-// Variables
+// LVGL buffers
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t *buf;
-uint16_t sensorAddress = 0x40;
+
+// Runtime state
+static ui_channel_data_t channelData;
+static ui_config_t runtimeConfig = {
+  UI_SENSOR_INA226_1A,
+  UI_UNITS_IMPERIAL,
+  UI_BATTERY_LIFEPO4,
+  UI_LOAD_CONSTANT_CURRENT,
+  UI_GRAPH_TRACE_ALL,
+  200,
+  10.0f,
+  60.0f,
+  100.0f,
+  4
+};
+
 static uint32_t lastSampleMs = 0;
 static uint32_t lastDebugMs = 0;
 static uint32_t lastLvTickMs = 0;
 static uint32_t lastSensorRetryMs = 0;
-static uint32_t lastBatteryTempRetryMs = 0;
 static uint32_t lastLoadTempRetryMs = 0;
-static float energyWh[3] = {0.0f, 0.0f, 0.0f};
-static ui_channel_data_t channelData[3];
-static bool sensorPresent = false;
-static bool batteryTempPresent = false;
+
+static float energyWh = 0.0f;
+static bool sensor1AReady = false;
+static bool sensor10AReady = false;
 static bool loadTempPresent = false;
-static Adafruit_MCP9600 *batteryTempSensor = nullptr;
-static Adafruit_MCP9600 *loadTempSensor = nullptr;
+static bool sensorPresent = false;
+static bool cutoffReached = false;
+static bool overtempReached = false;
+static bool dacPresent = false;
+static bool testRunning = false;
 
-static constexpr uint8_t BATTERY_TEMP_ADDRESS = 0x67;
-static constexpr uint8_t LOAD_TEMP_ADDRESS = 0x64;
-static constexpr uint8_t DAC_ADDRESS = 0x4C;
-static constexpr uint16_t DAC_STARTUP_CODE_3Q_FS = 49152;
+static constexpr uint8_t DAC_ADDRESS = 0x59;
+static constexpr const char *PREF_NAMESPACE = "energy_cfg";
 
-
-static void setSensorPresent(bool present)
+static void publishSensorStatus(void)
 {
-  sensorPresent = present;
-  ui_set_sensor_connected(sensorPresent);
+  char status[192];
+  snprintf(status, sizeof(status),
+           "INA226-1A: %s\n"
+           "INA226-10A: %s\n"
+           "Load Thermocouple: %s\n"
+           "DAC2: %s",
+           sensor1AReady ? "Connected" : "Not Connected",
+           sensor10AReady ? "Connected" : "Not Connected",
+           loadTempPresent ? "Connected" : "Not Connected",
+           dacPresent ? "Connected" : "Not Connected");
+  ui_set_sensor_status(status);
 }
 
-
-static bool initializeINA3221()
+static void sanitizeConfig(ui_config_t *config)
 {
-  if (!ina3221.begin(sensorAddress, &Wire)) {
-    return false;
+  if (config == nullptr) {
+    return;
   }
 
-  ina3221.setAveragingMode(INA3221_AVG_16_SAMPLES);
-  for (uint8_t i = 0; i < 3; i++) {
-    ina3221.setShuntResistance(i, 0.05);
+  if (config->sensor_type != UI_SENSOR_INA226_1A && config->sensor_type != UI_SENSOR_INA226_10A) {
+    config->sensor_type = UI_SENSOR_INA226_1A;
   }
 
-  return true;
+  if (config->units != UI_UNITS_IMPERIAL && config->units != UI_UNITS_METRIC) {
+    config->units = UI_UNITS_IMPERIAL;
+  }
+
+  if (config->sample_interval_ms < 50) {
+    config->sample_interval_ms = 50;
+  }
+  if (config->sample_interval_ms > 2000) {
+    config->sample_interval_ms = 2000;
+  }
+
+  if (config->cutoff_voltage_v < 1.0f) {
+    config->cutoff_voltage_v = 1.0f;
+  }
+  if (config->cutoff_voltage_v > 150.0f) {
+    config->cutoff_voltage_v = 150.0f;
+  }
+
+  if (config->overtemp_cutoff_c < 30.0f) {
+    config->overtemp_cutoff_c = 30.0f;
+  }
+  if (config->overtemp_cutoff_c > 100.0f) {
+    config->overtemp_cutoff_c = 100.0f;
+  }
+
+  if (config->battery_type < UI_BATTERY_ALKALINE || config->battery_type > UI_BATTERY_LIFEPO4) {
+    config->battery_type = UI_BATTERY_LIFEPO4;
+  }
+
+  if (config->load_type < UI_LOAD_CONSTANT_CURRENT || config->load_type > UI_LOAD_PULSED) {
+    config->load_type = UI_LOAD_CONSTANT_CURRENT;
+  }
+
+  config->graph_trace_mask &= UI_GRAPH_TRACE_ALL;
+  if (config->graph_trace_mask == 0) {
+    config->graph_trace_mask = UI_GRAPH_TRACE_ALL;
+  }
+
+  if (config->rated_battery_ampacity_ah < 0.1f) {
+    config->rated_battery_ampacity_ah = 0.1f;
+  }
+  if (config->rated_battery_ampacity_ah > 500.0f) {
+    config->rated_battery_ampacity_ah = 500.0f;
+  }
+
+  if (config->num_series_cells < 1) {
+    config->num_series_cells = 1;
+  }
+  if (config->num_series_cells > 30) {
+    config->num_series_cells = 30;
+  }
 }
 
-
-static void configureMCP960x(Adafruit_MCP9600 &sensor)
+static void saveConfigToNvs(const ui_config_t *config)
 {
-  sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
-  sensor.setThermocoupleType(MCP9600_TYPE_K);
-  sensor.setFilterCoefficient(3);
+  if (config == nullptr) {
+    return;
+  }
+
+  preferences.putUChar("sensor", (uint8_t)config->sensor_type);
+  preferences.putUChar("units", (uint8_t)config->units);
+  preferences.putUChar("battery", (uint8_t)config->battery_type);
+  preferences.putUChar("loadtype", (uint8_t)config->load_type);
+  preferences.putUChar("graphmask", config->graph_trace_mask);
+  preferences.putUShort("sample", config->sample_interval_ms);
+  preferences.putFloat("cutoff", config->cutoff_voltage_v);
+  preferences.putFloat("overtemp", config->overtemp_cutoff_c);
+  preferences.putFloat("ampacity", config->rated_battery_ampacity_ah);
+  preferences.putUChar("cells", config->num_series_cells);
 }
 
-
-static bool initializeMCP960x(Adafruit_MCP9600 &sensor9600, Adafruit_MCP9601 &sensor9601, Adafruit_MCP9600 **activeSensor, uint8_t address, const char *name)
+static void loadConfigFromNvs(ui_config_t *config)
 {
-  if (activeSensor == nullptr) {
-    return false;
+  if (config == nullptr) {
+    return;
   }
 
-  *activeSensor = nullptr;
+  config->sensor_type = (ui_sensor_type_t)preferences.getUChar("sensor", (uint8_t)config->sensor_type);
+  config->units = (ui_units_t)preferences.getUChar("units", (uint8_t)config->units);
+  config->battery_type = (ui_battery_type_t)preferences.getUChar("battery", (uint8_t)config->battery_type);
+  config->load_type = (ui_load_type_t)preferences.getUChar("loadtype", (uint8_t)config->load_type);
+  config->graph_trace_mask = preferences.getUChar("graphmask", config->graph_trace_mask);
+  config->sample_interval_ms = preferences.getUShort("sample", config->sample_interval_ms);
+  config->cutoff_voltage_v = preferences.getFloat("cutoff", config->cutoff_voltage_v);
+  config->overtemp_cutoff_c = preferences.getFloat("overtemp", config->overtemp_cutoff_c);
+  config->rated_battery_ampacity_ah = preferences.getFloat("ampacity", config->rated_battery_ampacity_ah);
+  config->num_series_cells = preferences.getUChar("cells", config->num_series_cells);
 
-  if (sensor9600.begin(address, &Wire)) {
-    configureMCP960x(sensor9600);
-    *activeSensor = &sensor9600;
-    Serial.printf("%s detected as MCP9600 at 0x%02X (Type K).\n", name, address);
-    return true;
-  }
-
-  if (sensor9601.begin(address, &Wire)) {
-    configureMCP960x(sensor9601);
-    *activeSensor = &sensor9601;
-    Serial.printf("%s detected as MCP9601 at 0x%02X (Type K).\n", name, address);
-    return true;
-  }
-
-  return false;
+  sanitizeConfig(config);
 }
-
-
-static bool initializeAD5693()
-{
-  if (!ad5693.begin(DAC_ADDRESS, &Wire)) {
-    return false;
-  }
-
-  ad5693.reset();
-  if (!ad5693.setMode(NORMAL_MODE, true, true)) {
-    return false;
-  }
-
-  if (!ad5693.writeUpdateDAC(DAC_STARTUP_CODE_3Q_FS)) {
-    return false;
-  }
-
-  return true;
-}
-
 
 static float celsiusToFahrenheit(float celsius)
 {
   return (celsius * 9.0f / 5.0f) + 32.0f;
 }
 
-
-static float readBatteryTempF(uint32_t nowMs)
+static void setSensorPresent(bool present)
 {
-  if (!batteryTempPresent && (nowMs - lastBatteryTempRetryMs >= 2000)) {
-    lastBatteryTempRetryMs = nowMs;
-    batteryTempPresent = initializeMCP960x(mcp9600Battery, mcp9601Battery, &batteryTempSensor, BATTERY_TEMP_ADDRESS, "Battery thermocouple");
-    if (batteryTempPresent) {
-      Serial.println("Battery thermocouple detected and initialized.");
-    } else {
-      Serial.printf("Battery thermocouple not detected at 0x%02X.\n", BATTERY_TEMP_ADDRESS);
-    }
-  }
-
-  if (!batteryTempPresent || batteryTempSensor == nullptr) {
-    return NAN;
-  }
-
-  float tempC = batteryTempSensor->readThermocouple();
-  if (isnan(tempC)) {
-    batteryTempPresent = false;
-    batteryTempSensor = nullptr;
-    Serial.println("Battery thermocouple read failed.");
-    return NAN;
-  }
-
-  return celsiusToFahrenheit(tempC);
+  sensorPresent = present;
+  publishSensorStatus();
 }
 
+static const char *sensorTypeName(ui_sensor_type_t sensorType)
+{
+  return sensorType == UI_SENSOR_INA226_10A ? "INA226-10A" : "INA226-1A";
+}
 
-static float readLoadTempF(uint32_t nowMs)
+static bool initializeINA226_1A()
+{
+  if (sensor1AReady) {
+    return true;
+  }
+  if (!meterUnits1A.add(ina226_1a, Wire)) {
+    return false;
+  }
+  sensor1AReady = meterUnits1A.begin();
+  return sensor1AReady;
+}
+
+static bool initializeINA226_10A()
+{
+  if (sensor10AReady) {
+    return true;
+  }
+  if (!meterUnits10A.add(ina226_10a, Wire)) {
+    return false;
+  }
+  sensor10AReady = meterUnits10A.begin();
+  return sensor10AReady;
+}
+
+static bool initializeLoadThermocouple()
+{
+  if (loadTempPresent) {
+    return true;
+  }
+  if (!thermoUnits.add(loadThermocouple, Wire)) {
+    return false;
+  }
+  loadTempPresent = thermoUnits.begin();
+  return loadTempPresent;
+}
+
+static bool initializeDAC2()
+{
+  if (dacPresent) {
+    return true;
+  }
+
+  auto cfg = dac2.config();
+  cfg.range0 = m5::unit::gp8413::Output::Range10V;
+  cfg.range1 = m5::unit::gp8413::Output::Range10V;
+  dac2.config(cfg);
+
+  if (!anadigUnits.add(dac2, Wire)) {
+    Serial.println("DAC2 add() failed.");
+    return false;
+  }
+
+  dacPresent = anadigUnits.begin();
+  if (!dacPresent) {
+    Serial.println("DAC2 begin() failed.");
+    return false;
+  }
+
+  return true;
+}
+
+static void applyDacTestPattern()
+{
+  if (!dacPresent) {
+    return;
+  }
+
+  constexpr float ch0_test_mv = 1500.0f;
+  constexpr float ch1_test_mv = 8500.0f;
+
+  bool wrote = dac2.writeBothVoltage(ch0_test_mv, ch1_test_mv);
+  if (wrote) {
+    Serial.printf("DAC2 test output set: CH0=%.3fV CH1=%.3fV (Range 0-10V).\n", ch0_test_mv / 1000.0f, ch1_test_mv / 1000.0f);
+    Serial.println("DAC2 is unipolar only; negative voltage output is not supported by this hardware.");
+  } else {
+    Serial.println("DAC2 write failed.");
+  }
+}
+
+static void applySensorSelection(void)
+{
+  if (runtimeConfig.sensor_type == UI_SENSOR_INA226_10A) {
+    activeIna226 = &ina226_10a;
+    activeMeterUnits = &meterUnits10A;
+    setSensorPresent(sensor10AReady);
+  } else {
+    activeIna226 = &ina226_1a;
+    activeMeterUnits = &meterUnits1A;
+    setSensorPresent(sensor1AReady);
+  }
+}
+
+static void applyUiConfig(const ui_config_t *config)
+{
+  if (config == nullptr) {
+    return;
+  }
+
+  bool sensorChanged = (runtimeConfig.sensor_type != config->sensor_type);
+  runtimeConfig = *config;
+
+  sanitizeConfig(&runtimeConfig);
+
+  applySensorSelection();
+  saveConfigToNvs(&runtimeConfig);
+
+  if (sensorChanged) {
+    lastSampleMs = 0;
+    cutoffReached = false;
+    overtempReached = false;
+    Serial.printf("Sensor type changed to %s\n", sensorTypeName(runtimeConfig.sensor_type));
+  }
+}
+
+static float readLoadTempConfiguredUnits(uint32_t nowMs)
 {
   if (!loadTempPresent && (nowMs - lastLoadTempRetryMs >= 2000)) {
     lastLoadTempRetryMs = nowMs;
-    loadTempPresent = initializeMCP960x(mcp9600Load, mcp9601Load, &loadTempSensor, LOAD_TEMP_ADDRESS, "Load thermocouple");
+    loadTempPresent = initializeLoadThermocouple();
     if (loadTempPresent) {
       Serial.println("Load thermocouple detected and initialized.");
     } else {
-      Serial.printf("Load thermocouple not detected at 0x%02X.\n", LOAD_TEMP_ADDRESS);
+      Serial.println("Load thermocouple not detected.");
     }
   }
 
-  if (!loadTempPresent || loadTempSensor == nullptr) {
+  if (!loadTempPresent) {
     return NAN;
   }
 
-  float tempC = loadTempSensor->readThermocouple();
+  thermoUnits.update();
+  float tempC = loadThermocouple.temperature();
   if (isnan(tempC)) {
     loadTempPresent = false;
-    loadTempSensor = nullptr;
     Serial.println("Load thermocouple read failed.");
     return NAN;
   }
 
+  if (runtimeConfig.units == UI_UNITS_METRIC) {
+    return tempC;
+  }
+
   return celsiusToFahrenheit(tempC);
 }
 
-
-void updateINA3221AndUi()
+static void updateEnergyAndUi()
 {
   uint32_t nowMs = millis();
   uint32_t deltaMs = (lastSampleMs == 0) ? 0 : (nowMs - lastSampleMs);
   float deltaHours = (float)deltaMs / 3600000.0f;
-  float batteryTempF = readBatteryTempF(nowMs);
-  float loadTempF = readLoadTempF(nowMs);
 
-  if (!sensorPresent) {
-    for (uint8_t i = 0; i < 3; i++) {
-      if (ui_consume_reset_request(i)) {
-        energyWh[i] = 0.0f;
-      }
+  if (ui_consume_start_request(0)) {
+    energyWh = 0.0f;
+    testRunning = true;
+    lastSampleMs = nowMs;
+    cutoffReached = false;
+    overtempReached = false;
+    channelData.energy_wh = 0.0f;
+    ui_set_test_running(true);
+  }
 
-      channelData[i].voltage_v = 0.0f;
-      channelData[i].current_ma = 0.0f;
-      channelData[i].power_w = 0.0f;
-      channelData[i].energy_wh = energyWh[i];
-      channelData[i].battery_temp_f = batteryTempF;
-      channelData[i].load_temp_f = loadTempF;
+  if (ui_consume_stop_request(0)) {
+    testRunning = false;
+    lastSampleMs = nowMs;
+    ui_set_test_running(false);
+  }
 
-      ui_set_channel_data(i, &channelData[i]);
-    }
+  if (ui_consume_reset_request(0)) {
+    energyWh = 0.0f;
+    testRunning = false;
+    cutoffReached = false;
+    overtempReached = false;
+    lastSampleMs = nowMs;
+    deltaMs = 0;
+    deltaHours = 0.0f;
+    ui_set_test_running(false);
+  }
 
+  if (!testRunning) {
+    return;
+  }
+
+  float loadTemp = readLoadTempConfiguredUnits(nowMs);
+
+  if (!sensorPresent || activeMeterUnits == nullptr || activeIna226 == nullptr) {
+    channelData.voltage_v = 0.0f;
+    channelData.current_ma = 0.0f;
+    channelData.power_w = 0.0f;
+    channelData.energy_wh = energyWh;
+    channelData.load_temp_f = loadTemp;
+    ui_set_channel_data(0, &channelData);
     lastSampleMs = nowMs;
     return;
   }
 
-  for (uint8_t i = 0; i < 3; i++) {
-    if (ui_consume_reset_request(i)) {
-      energyWh[i] = 0.0f;
-    }
+  activeMeterUnits->update();
 
-    float voltageV = ina3221.getBusVoltage(i);
-    float currentA = ina3221.getCurrentAmps(i);
+  float voltageV = activeIna226->voltage() / 1000.0f;
+  float currentA = activeIna226->current() / 1000.0f;
 
-    if (isnan(voltageV) || isnan(currentA)) {
-      setSensorPresent(false);
-      Serial.println("INA3221 read failed, sensor unavailable.");
-      updateINA3221AndUi();
-      return;
-    }
-
-    float powerW = voltageV * currentA;
-
-    if (deltaMs > 0) {
-      energyWh[i] += powerW * deltaHours;
-    }
-
-    channelData[i].voltage_v = voltageV;
-    channelData[i].current_ma = currentA * 1000.0f;
-    channelData[i].power_w = powerW;
-    channelData[i].energy_wh = energyWh[i];
-    channelData[i].battery_temp_f = batteryTempF;
-    channelData[i].load_temp_f = loadTempF;
-
-    ui_set_channel_data(i, &channelData[i]);
+  if (isnan(voltageV) || isnan(currentA)) {
+    setSensorPresent(false);
+    Serial.println("INA226 read failed, sensor unavailable.");
+    lastSampleMs = nowMs;
+    return;
   }
 
+  if (!cutoffReached && voltageV <= runtimeConfig.cutoff_voltage_v) {
+    cutoffReached = true;
+    Serial.printf("Cutoff reached at %.3fV (configured %.3fV).\n", voltageV, runtimeConfig.cutoff_voltage_v);
+  }
+
+  // Check for overtemp cutoff (temperature is already in correct units)
+  if (!isnan(loadTemp) && !overtempReached) {
+    float tempC = (runtimeConfig.units == UI_UNITS_METRIC) ? loadTemp : (loadTemp - 32.0f) * 5.0f / 9.0f;
+    if (tempC >= runtimeConfig.overtemp_cutoff_c) {
+      overtempReached = true;
+      Serial.printf("Overtemp cutoff reached at %.1fC (configured %.1fC).\n", tempC, runtimeConfig.overtemp_cutoff_c);
+    }
+  }
+
+  float powerW = voltageV * currentA;
+  if (testRunning && !cutoffReached && !overtempReached && deltaMs > 0) {
+    energyWh += powerW * deltaHours;
+  }
+
+  channelData.voltage_v = voltageV;
+  channelData.current_ma = currentA * 1000.0f;
+  channelData.power_w = powerW;
+  channelData.energy_wh = energyWh;
+  channelData.load_temp_f = loadTemp;
+
+  ui_set_channel_data(0, &channelData);
   lastSampleMs = nowMs;
 }
 
-
 void lv_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
 {
-    uint32_t w = (area->x2 - area->x1 + 1);
-    uint32_t h = (area->y2 - area->y1 + 1);
-    display.pushImageDMA(area->x1, area->y1, w, h, (uint16_t *)&color_p->full); 
-    lv_disp_flush_ready(disp);
+  uint32_t w = (area->x2 - area->x1 + 1);
+  uint32_t h = (area->y2 - area->y1 + 1);
+  display.pushImageDMA(area->x1, area->y1, w, h, (uint16_t *)&color_p->full);
+  lv_disp_flush_ready(disp);
 }
-
-
-void my_rounder(lv_disp_drv_t *disp_drv, lv_area_t *area)
-{
-    if (area->x1 % 2 != 0)
-        area->x1 += 1;
-    if (area->y1 % 2 != 0)
-        area->y1 += 1;
-
-    uint32_t w = (area->x2 - area->x1 + 1);
-    uint32_t h = (area->y2 - area->y1 + 1);
-    if (w % 2 != 0)
-        area->x2 -= 1;
-    if (h % 2 != 0)
-        area->y2 -= 1;
-}
-
 
 static void lv_indev_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
-{  
-     lgfx::touch_point_t tp[3];
-  uint8_t touchpad = display.getTouch(tp, 3);
-       if (touchpad > 0)
-       {
-          data->state = LV_INDEV_STATE_PR;
-          data->point.x = tp[0].x;
-          data->point.y = tp[0].y;
-          //Serial.printf("X: %d   Y: %d\n", tp[0].x, tp[0].y); //for testing
-       }
-       else
-       {
-        data->state = LV_INDEV_STATE_REL;
-       }
+{
+  (void)indev_driver;
 
-      data->continue_reading = false;
+  lgfx::touch_point_t tp[3];
+  uint8_t touchpad = display.getTouch(tp, 3);
+  if (touchpad > 0) {
+    data->state = LV_INDEV_STATE_PR;
+    data->point.x = tp[0].x;
+    data->point.y = tp[0].y;
+  } else {
+    data->state = LV_INDEV_STATE_REL;
+  }
+
+  data->continue_reading = false;
 }
 
 void setup()
 {
+  display.init();
+  Serial.begin(115200);
 
-   /*Initialize Tab5 MIPI-DSI display*/
-    display.init();
+  if (!preferences.begin(PREF_NAMESPACE, false)) {
+    Serial.println("Failed to open NVS preferences namespace.");
+  }
+  loadConfigFromNvs(&runtimeConfig);
+  saveConfigToNvs(&runtimeConfig);
 
-    Serial.begin(115200);//for debug
+  lv_init();
+  buf = (lv_color_t *)heap_caps_malloc(sizeof(lv_color_t) * LVGL_LCD_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_LCD_BUF_SIZE);
 
-    /*Initialize LVGL*/
-    lv_init();
-    buf = (lv_color_t *)heap_caps_malloc(sizeof(lv_color_t) * LVGL_LCD_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    lv_disp_draw_buf_init(&draw_buf, buf, NULL, LVGL_LCD_BUF_SIZE);
-    static lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = EXAMPLE_LCD_H_RES;
-    disp_drv.ver_res = EXAMPLE_LCD_V_RES;
-    //disp_drv.rounder_cb = my_rounder; 
-    disp_drv.flush_cb = lv_disp_flush;
-    disp_drv.draw_buf = &draw_buf;
-    disp_drv.sw_rotate = 0;
-    lv_disp_drv_register(&disp_drv);
+  static lv_disp_drv_t disp_drv;
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.hor_res = EXAMPLE_LCD_H_RES;
+  disp_drv.ver_res = EXAMPLE_LCD_V_RES;
+  disp_drv.flush_cb = lv_disp_flush;
+  disp_drv.draw_buf = &draw_buf;
+  disp_drv.sw_rotate = 0;
+  lv_disp_drv_register(&disp_drv);
 
-    /*Initialize touch*/
-    static lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = lv_indev_read;
-    lv_indev_drv_register(&indev_drv);     
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = lv_indev_read;
+  lv_indev_drv_register(&indev_drv);
 
-    /*Start UI*/
-    ui_init();   
-    display.setBrightness(255);  
+  ui_init();
+  ui_set_config(&runtimeConfig);
+  ui_set_test_running(false);
+  display.setBrightness(255);
 
-    /* Start I2C */
-    Wire.begin(I2C_SDA, I2C_SCL);
-    delay(1000); 
-    
-    /* Initialize the INA3221 */
-    setSensorPresent(initializeINA3221());
-    if (!sensorPresent) {
-      Serial.println("INA3221 not found at startup, running without sensor data.");
-    } else {
-      Serial.println("INA3221 initialized.");
-    }
+  Wire.begin(I2C_SDA, I2C_SCL, 400000U);
+  delay(1000);
 
-    batteryTempPresent = initializeMCP960x(mcp9600Battery, mcp9601Battery, &batteryTempSensor, BATTERY_TEMP_ADDRESS, "Battery thermocouple");
-    if (batteryTempPresent) {
-      Serial.println("Battery thermocouple initialized.");
-    } else {
-      Serial.println("Battery thermocouple not found at startup.");
-    }
+  (void)initializeINA226_1A();
+  (void)initializeINA226_10A();
+  applySensorSelection();
 
-    loadTempPresent = initializeMCP960x(mcp9600Load, mcp9601Load, &loadTempSensor, LOAD_TEMP_ADDRESS, "Load thermocouple");
-    if (loadTempPresent) {
-      Serial.println("Load thermocouple initialized.");
-    } else {
-      Serial.println("Load thermocouple not found at startup.");
-    }
+  if (!sensorPresent) {
+    Serial.printf("%s not found at startup, running without sensor data.\n", sensorTypeName(runtimeConfig.sensor_type));
+  } else {
+    Serial.printf("%s initialized.\n", sensorTypeName(runtimeConfig.sensor_type));
+  }
 
-    if (initializeAD5693()) {
-      Serial.printf("AD5693 initialized at 0x%02X, output set to ~75%% FS (%u).\n", DAC_ADDRESS, DAC_STARTUP_CODE_3Q_FS);
-    } else {
-      Serial.printf("AD5693 not detected/configured at 0x%02X.\n", DAC_ADDRESS);
-    }
+  if (initializeLoadThermocouple()) {
+    Serial.println("Load thermocouple initialized.");
+  } else {
+    Serial.println("Load thermocouple not found at startup.");
+  }
 
-    updateINA3221AndUi();
+  if (initializeDAC2()) {
+    Serial.printf("DAC2 detected at expected I2C address 0x%02X.\n", DAC_ADDRESS);
+    applyDacTestPattern();
+  } else {
+    Serial.printf("DAC2 not detected at expected I2C address 0x%02X.\n", DAC_ADDRESS);
+  }
 
+  publishSensorStatus();
+
+  updateEnergyAndUi();
 }
-
 
 void loop()
 {
   uint32_t now = millis();
+
   if (lastLvTickMs == 0) {
     lastLvTickMs = now;
   }
+
   uint32_t elapsed = now - lastLvTickMs;
   if (elapsed > 0) {
     lv_tick_inc(elapsed);
@@ -415,32 +548,46 @@ void loop()
 
   lv_timer_handler();
 
+  ui_config_t updatedConfig;
+  if (ui_consume_config_update(&updatedConfig)) {
+    applyUiConfig(&updatedConfig);
+  }
+
   if (!sensorPresent && (now - lastSensorRetryMs >= 2000)) {
     lastSensorRetryMs = now;
-    setSensorPresent(initializeINA3221());
+
+    if (runtimeConfig.sensor_type == UI_SENSOR_INA226_10A) {
+      (void)initializeINA226_10A();
+    } else {
+      (void)initializeINA226_1A();
+    }
+
+    applySensorSelection();
     if (sensorPresent) {
-      Serial.println("INA3221 detected and reinitialized.");
+      Serial.printf("%s detected and reinitialized.\n", sensorTypeName(runtimeConfig.sensor_type));
       lastSampleMs = 0;
     } else {
-      Serial.println("INA3221 still not detected.");
+      Serial.printf("%s still not detected.\n", sensorTypeName(runtimeConfig.sensor_type));
     }
   }
 
-  if (now - lastSampleMs >= 200) {
-    updateINA3221AndUi();
+  if (now - lastSampleMs >= runtimeConfig.sample_interval_ms) {
+    updateEnergyAndUi();
   }
 
   if (now - lastDebugMs >= 1000) {
+    publishSensorStatus();
     Serial.printf(
-      "CH1: %.3fV %.2fmA %.3fW %.6fWh | CH2: %.3fV %.2fmA %.3fW %.6fWh | CH3: %.3fV %.2fmA %.3fW %.6fWh | Batt: %.1fF Load: %.1fF\n",
-      channelData[0].voltage_v, channelData[0].current_ma, channelData[0].power_w, channelData[0].energy_wh,
-      channelData[1].voltage_v, channelData[1].current_ma, channelData[1].power_w, channelData[1].energy_wh,
-      channelData[2].voltage_v, channelData[2].current_ma, channelData[2].power_w, channelData[2].energy_wh,
-      channelData[0].battery_temp_f, channelData[0].load_temp_f
+      "Sensor:%s | V:%.3fV I:%.2fmA P:%.3fW E:%.6fWh | Load:%.1f%s | Cutoff:%.2fV %s | Overtemp:%.0fC %s | Batt:%uAh %ucells\\n",
+      sensorTypeName(runtimeConfig.sensor_type),
+      channelData.voltage_v, channelData.current_ma, channelData.power_w, channelData.energy_wh,
+      channelData.load_temp_f, runtimeConfig.units == UI_UNITS_METRIC ? "C" : "F",
+      runtimeConfig.cutoff_voltage_v, cutoffReached ? "REACHED" : "OK",
+      runtimeConfig.overtemp_cutoff_c, overtempReached ? "REACHED" : "OK",
+      (unsigned)runtimeConfig.rated_battery_ampacity_ah, (unsigned)runtimeConfig.num_series_cells
     );
     lastDebugMs = now;
   }
 
   delay(5);
-
 }
